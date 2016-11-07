@@ -13,8 +13,6 @@ $elsearch = new ElSearch();
 $a = isset($_GET['a']) ? $_GET['a'] : '';
 $action_map = [
     'get'       => 'getIndexFromKeywords',//根据关键词获取检索内容
-    'fenci'     => 'getFenciFromKeywords',//根据关键词获取分词结果
-    'addindex'  => 'reBuild',//重建主从索引
 
     //'deldoc'  => 'EsDeleteIndex',
 ];
