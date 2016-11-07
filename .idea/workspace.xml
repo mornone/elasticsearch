@@ -100,8 +100,8 @@
       <file leaf-file-name="ElasticsearchTrait.php" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/library/ElasticsearchTrait.php">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.5568581">
-              <caret line="100" column="31" selection-start-line="100" selection-start-column="21" selection-end-line="100" selection-end-column="31" />
+            <state vertical-scroll-proportion="0.64478314">
+              <caret line="103" column="35" selection-start-line="103" selection-start-column="35" selection-end-line="103" selection-end-column="35" />
               <folding />
             </state>
           </provider>
@@ -910,8 +910,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/library/ElasticsearchTrait.php">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.5568581">
-          <caret line="100" column="31" selection-start-line="100" selection-start-column="21" selection-end-line="100" selection-end-column="31" />
+        <state vertical-scroll-proportion="0.64478314">
+          <caret line="103" column="35" selection-start-line="103" selection-start-column="35" selection-end-line="103" selection-end-column="35" />
           <folding />
         </state>
       </provider>

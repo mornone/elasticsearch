@@ -28,3 +28,11 @@ composer install
 
 #### 安装完成之后
 跟目录下的几个php文件都是测试文件，通过访问[/api/?a=get&keywords=整骨专家](/api/?a=get&keywords=整骨专家)测试结果是否正常。
+
+![image](readme/1.jpg)
+
+![image](readme/2.jpg)
+
+![image](readme/3.jpg)
+
+![image](readme/4.jpg)
