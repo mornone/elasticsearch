@@ -1,0 +1,87 @@
+2016-11-03 09:45:17 root INFO  ===============================================================
+2016-11-03 09:45:17 root INFO  
+
+2016-11-03 09:45:17 root INFO  【1、先建立从索引，把别名迁移到从索引】
+2016-11-03 09:45:19 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:45:19 root INFO  [my_zhitou_index_slave] 索引批量创建成功！
+2016-11-03 09:45:19 root INFO  {"acknowledged":true}
+2016-11-03 09:45:19 root INFO  耗时：1.593s
+2016-11-03 09:45:19 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_master] 迁移到 [my_zhitou_index_slave]
+2016-11-03 09:45:19 root INFO  
+
+
+2016-11-03 09:45:19 root INFO  【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】
+2016-11-03 09:45:19 root INFO  索引： [my_zhitou_index_master] 删除成功
+2016-11-03 09:45:20 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:45:20 root INFO  [my_zhitou_index_master] 索引批量创建成功！
+2016-11-03 09:45:20 root INFO  {"acknowledged":true}
+2016-11-03 09:45:20 root INFO  耗时：0.49s
+2016-11-03 09:45:20 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_slave] 迁移到 [my_zhitou_index_master]
+2016-11-03 09:45:20 root INFO  
+
+
+2016-11-03 09:45:20 root INFO  【3、删除从索引以备下一次重复该流程】
+2016-11-03 09:45:20 root INFO  索引： [my_zhitou_index_slave] 删除成功
+2016-11-03 09:45:20 root INFO  
+
+2016-11-03 09:45:20 root INFO  ===============================================================
+2016-11-03 09:45:20 root INFO  
+
+2016-11-03 09:50:38 root INFO  ===============================================================
+2016-11-03 09:50:38 root INFO  
+
+2016-11-03 09:50:38 root INFO  【1、先建立从索引，把别名迁移到从索引】
+2016-11-03 09:50:40 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:50:40 root INFO  [my_zhitou_index_slave] 索引批量创建成功！
+2016-11-03 09:50:40 root INFO  {"acknowledged":true}
+2016-11-03 09:50:40 root INFO  耗时：2.455s
+2016-11-03 09:50:40 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_master] 迁移到 [my_zhitou_index_slave]
+2016-11-03 09:50:40 root INFO  
+
+
+2016-11-03 09:50:40 root INFO  【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】
+2016-11-03 09:50:41 root INFO  索引： [my_zhitou_index_master] 删除成功
+2016-11-03 09:50:41 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:50:41 root INFO  [my_zhitou_index_master] 索引批量创建成功！
+2016-11-03 09:50:41 root INFO  {"acknowledged":true}
+2016-11-03 09:50:41 root INFO  耗时：0.461s
+2016-11-03 09:50:41 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_slave] 迁移到 [my_zhitou_index_master]
+2016-11-03 09:50:41 root INFO  
+
+
+2016-11-03 09:50:41 root INFO  【3、删除从索引以备下一次重复该流程】
+2016-11-03 09:50:41 root INFO  索引： [my_zhitou_index_slave] 删除成功
+2016-11-03 09:50:41 root INFO  
+
+2016-11-03 09:50:41 root INFO  ===============================================================
+2016-11-03 09:50:41 root INFO  
+
+2016-11-03 09:55:18 root INFO  ===================================BEGIN===================================
+2016-11-03 09:55:18 root INFO  
+
+2016-11-03 09:55:18 root INFO  【1、先建立从索引，把别名迁移到从索引】
+2016-11-03 09:55:19 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:55:19 root INFO  [my_zhitou_index_slave] 索引批量创建成功！
+2016-11-03 09:55:19 root INFO  {"acknowledged":true}
+2016-11-03 09:55:19 root INFO  耗时：1.042s
+2016-11-03 09:55:19 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_master] 迁移到 [my_zhitou_index_slave]
+2016-11-03 09:55:19 root INFO  
+
+
+2016-11-03 09:55:19 root INFO  【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】
+2016-11-03 09:55:20 root INFO  索引： [my_zhitou_index_master] 删除成功
+2016-11-03 09:55:22 root INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-03 09:55:22 root INFO  [my_zhitou_index_master] 索引批量创建成功！
+2016-11-03 09:55:22 root INFO  {"acknowledged":true}
+2016-11-03 09:55:22 root INFO  耗时：2.11s
+2016-11-03 09:55:22 root INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_slave] 迁移到 [my_zhitou_index_master]
+2016-11-03 09:55:22 root INFO  
+
+
+2016-11-03 09:55:22 root INFO  【3、删除从索引以备下一次重复该流程】
+2016-11-03 09:55:22 root INFO  索引： [my_zhitou_index_slave] 删除成功
+2016-11-03 09:55:22 root INFO  
+
+2016-11-03 09:55:22 root INFO  ===================================END===================================
+2016-11-03 09:55:22 root INFO  
+

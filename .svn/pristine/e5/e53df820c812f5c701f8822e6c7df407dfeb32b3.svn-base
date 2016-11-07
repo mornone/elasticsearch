@@ -1,0 +1,454 @@
+<?php
+class ElSearch extends Base
+{
+    const KEY = '&&%%$&)jhjdfkjajs65544)(*&%$';
+    protected $api_url = 'http://zhitou.78.cn/api/api.php';
+    protected $name = 'zhitou_78_cn';
+    protected $act_map = ['getPinPaiKeywords', 'getFenLeiKeywords']; //getPinPaiKeywords getFenLeiKeywords
+    protected $es;
+    protected $es_index = 'zhitou_index';//类似db
+    protected $es_type = 'fenlei_type';//类似table
+    protected $app_key_map = [ 'zhitou' => 'ow8e5aKOuisdfwr' ];//app_id => app_serect
+    protected $debug = false;//是否测试环境
+
+    public function __construct()
+    {
+        if(!$this->debug){
+            //$this->generateTokenDemo();
+            $res = $this->validateToken($_GET);
+//            var_dump($res);exit;
+            if($res !== true){
+                echo $this->result(['code' => 500, 'message' => '请检查授权']);
+                exit;
+            }
+        }
+
+        try {
+            $this->es = $client = Elasticsearch\ClientBuilder::create()
+                ->setHosts(['localhost:9200'])->build();
+            if ($client) {
+//                echo 'connected';
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            exit;
+        }
+    }
+
+    /**
+     * 生成token签名demo
+     */
+    private function generateTokenDemo()
+    {
+        header("content-type:text/html; charset=utf8");
+        $app_id = 'zhitou';
+        $app_secret = 'ow8e5aKOuisdfwr';
+        $data = [
+            'a' => 'get',
+            'keywords' => '比意格自助披萨',
+        ];
+        ksort($data);
+        $url_string = http_build_query($data);
+//        echo $url_string;
+//        exit;
+        $token = md5($url_string . date("Ymd"). $app_secret);
+        $url_string .= '&appid='.$app_id.'&token='. $token;
+        $url = 'http://search.qudao.com/api/';
+        echo '<a href="'. $url . '?' . $url_string .'">'.$url . '?' . $url_string.'</a>';
+    }
+
+    public function getFenciFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? $_GET['keywords'] : '';
+        $data = $this->EsAnalyzerFromKeywords($keywords);
+        $res = json_decode($data, true);
+        $fenci_arr = $res['tokens'];
+        echo '分词结果:';
+        foreach ($fenci_arr as $v) {
+            echo $v['token'] . ',';
+        }
+    }
+
+    public function getIndexFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? urldecode($_GET['keywords']) : '';
+        $data = $this->EsGetIndex($keywords);
+        $result = [];
+        foreach ($data as $v) {
+            $result[] = $v['_source'];
+        }
+        if (!empty($result)) {
+            $result = array_merge($result, ['keywords' => $keywords, 'count' => count($result)]);
+            $ret_data = array_merge(['data' => $result], ['code' => 200, 'message' => '数据获取成功']);
+            return $this->result($ret_data);
+        } else {
+            return false;
+        }
+    }
+
+
+    public function putMapping()
+    {
+        $this->EsPutMapping();
+    }
+
+
+    /**
+     * 批量创建索引
+     * @return string
+     */
+    public function createIndexFromApi()
+    {
+        $stime = microtime(true);
+        $data = $this->getDataFromApi();
+//        print_r($data);
+//        echo '<br>';
+//        exit;
+        /*foreach($data as $v){
+            $keywords = $v['keywords'];
+            $data = $this->EsAnalyzerFromKeywords($keywords);
+            $res = json_decode($data, true);
+            print_r($res);
+            exit;
+        }*/
+
+
+//        $data_tmp = array_slice($data, 0, 10);
+        $data_tmp = $data;
+        if ($this->EsCreateIndex($data_tmp)) {
+            $etime = microtime(true);
+            $total = $etime - $stime;
+            $msg = '索引批量创建成功！耗时：'.$total.'times';
+        } else {
+            $msg = '索引批量创建失败！';
+        }
+        return $msg;
+    }
+
+
+    /**
+     * 删除索引
+     * @return string
+     */
+    public function deleteIndexFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? $_GET['keywords'] : '';
+        if (!empty($keywords)) {
+            if (!empty($this->EsDeleteDocument($keywords))) {
+                $msg = $keywords . ' 索引删除成功！';
+            } else {
+                $msg = $keywords . ' 索引删除失败！';
+            }
+        } else {
+            $msg = '关键词不能为空';
+        }
+        return $msg;
+    }
+
+    private function EsPutMapping()
+    {
+        $params_mapping['index'] = ['_index' => $this->es_index, '_type' => $this->es_type,];
+        $params_mapping['body'] = [
+            $this->es_type => [
+                'properties' => [
+                    'main_id' => [
+                        'type' => 'integer'
+                    ],
+                    'is_show' => [
+                        'type' => 'integer'
+                    ],
+                    'type' => [
+                        'type' => 'integer'
+                    ],
+                    'keywords' => [
+                        'type' => 'string',
+                        'index' => 'analyzed',
+                        'analyzer' => 'ik',
+                    ],
+                ]
+            ]
+        ];
+        $response = $this->es->indices()->putMapping($params);
+    }
+
+
+    /**
+     * 批量创建索引
+     * @param $data
+     * @return bool
+     */
+    private function EsCreateIndex($data)
+    {
+        $params = [];
+        $num = count($data);
+//        print_r($data);exit;
+        for ($i = 0; $i < $num; $i++) {
+            $params['body'][] = [
+                'index' => [
+                    '_index' => $this->es_index,
+                    '_type' => $this->es_type,
+                ]
+            ];
+
+            $params['body'][] = [
+                'main_id' => $data[$i]['main_id'],
+                'keywords' => $data[$i]['keywords'],
+                'is_show' => $data[$i]['is_show'],
+                'type' => $data[$i]['type'],
+            ];
+        }
+        $responses = $this->es->bulk($params);
+        if ($responses) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    private function EsUpdateDocument()
+    {
+
+    }
+
+    /**
+     * 查找索引
+     * @param $keyword
+     * @return mixed
+     */
+    private function EsGetIndex($keyword)
+    {
+        /*$params_search = [
+            'index' => $this->es_index,
+            'type' => $this->es_type,
+            'body' => [
+                'query' => [
+                    'match' => [
+                        'keywords' => $keyword
+                    ]
+                ]
+            ]
+        ];*/
+        $params_search = [
+            'index' => $this->es_index,
+            'type' => $this->es_type,
+            'body' => [
+
+                //带过滤条件查询
+                "query" => [
+                    "filtered" => [
+                        "filter" => ["wildcard" => ["is_show" => "1"]],
+                        "query" => ["match" => ["keywords" => $keyword]]
+                    ]
+                ]
+
+                //全部查询
+                /*'query' => [
+                    'match' => [
+                        'keywords' => $keyword
+                    ]
+                ]*/
+            ]
+        ];
+
+
+        $params_search_alias = [
+
+        ];
+
+        //分词查询
+        /*$params_search_analyzer = [
+            'index' => $this->es_index,
+            'type' => $this->es_type,
+            'analyzer' => 'ik',
+            'analyze_wildcard' => true,
+            'body' => [
+                'query' => [
+                    'bool' => [
+                        'must' => [
+                            ['term' => ['keywords' => $keyword]],
+                            ['wildcard' => ['is_show' => '1']]
+                        ]
+                    ]
+                ]
+            ]
+        ];*/
+
+//        print_r(json_encode($params_search));exit;
+        $response = $this->es->search($params_search);
+//        print_r($response);exit;
+        $match_data = $response['hits']['hits'];
+        return $match_data;
+    }
+
+    /**
+     * @param $keyword
+     * @return bool
+     */
+    private function EsDeleteDocument($keyword)
+    {
+        //批量删除实现的逻辑是先根据词查出数据，然后遍历删除
+        $params_search = [
+            'index' => $this->es_index,
+            'type' => $this->es_type,
+            'body' => [
+                'query' => [
+                    'match' => [
+                        'keywords' => $keyword
+                    ]
+                ]
+            ]
+        ];
+
+//        print_r(json_encode($params_search));exit;
+        $response = $this->es->search($params_search);
+        $match_data = $response['hits']['hits'];
+//        print_r($match_data);exit;
+        foreach ($match_data as $v) {
+            $params_tmp = [
+                'index' => $v['_index'],
+                'type' => $v['_type'],
+                'id' => $v['_id']
+            ];
+//            $res = $this->es->delete($params_tmp);
+//            print_r($res);
+            try {
+                if ($this->es->delete($params_tmp)) {
+                    return true;
+                }
+            } catch (Exception $e) {
+                print $e->getMessage();
+                exit();
+            }
+        }
+//        exit;
+        return false;
+    }
+
+    /**
+     * 删除索引
+     * @return mixed
+     */
+    public function EsDeleteIndex()
+    {
+        $url = 'http://localhost:9200/zhitou_index/';
+        $res = $this->curlFileGetContents($url, 'delete');
+        $data = json_decode($res, true);
+        if (isset($data['acknowledged']) && $data['acknowledged'] == 'true') {
+            return $res;
+        }else{
+            return 'failed';
+        }
+    }
+
+    /**
+     * 根据关键词分词
+     * @param $keywords
+     * @return mixed
+     */
+    private function EsAnalyzerFromKeywords($keywords)
+    {
+        $keywords = urlencode($keywords);
+        $url = 'http://localhost:9200/zhitou_index/_analyze?field=keywords&analyzer=ik&text=' . $keywords;
+        $res = $this->curlFileGetContents($url);
+        return $res;
+    }
+
+    /**
+     * 根据api地址获取数据
+     * @return array
+     */
+    private function getDataFromApi()
+    {
+        $data_map = [];
+        $parseUrl = $this->buildUrl();
+        foreach ($parseUrl as $key => $url) {
+            $data_json = $this->curlFileGetContents($url);
+            $data = json_decode($data_json, true);
+            if ($data['msg'] == 'success' && $data['code'] == 200) {
+                foreach ($data['data'] as $v) {
+                    $data_map[] = $v;
+                }
+            }
+        }
+        return $data_map;
+    }
+
+
+    /**
+     * 组装请求url地址
+     * @return array
+     */
+    private function buildUrl()
+    {
+        $url = [];
+        foreach ($this->act_map as $act) {
+            $params = [
+                'act' => $act,
+                'token' => self::token()
+            ];
+            $url[$act] = $this->api_url . '?' . http_build_query($params);
+        }
+        return $url;
+    }
+
+    /**
+     * @param $retData
+     * @return string
+     */
+    private function result($ret_data)
+    {
+        header("content-type:text/json; charset=utf8");
+        $ret = array(
+            'code' => $ret_data['code'],
+            'message' => isset($ret_data['message']) ? $ret_data['message'] : '请检查参数格式',
+        );
+        if (isset($ret_data['data']))
+            $ret['data'] = $ret_data['data'];
+        return json_encode($ret);
+    }
+
+    /**
+     * 校验请求签名是否正确
+     * @param $query_params
+     * @param $client_appid
+     * @param $client_token
+     * @return string
+     */
+    private function validateToken($query_params)
+    {
+        $client_appid = isset($query_params['appid']) ? $query_params['appid'] : '';
+        $client_token = isset($query_params['token']) ? $query_params['token'] : '';
+        if(!$client_appid || !$client_token)return $this->result(['code' => 0]);
+
+        $params = $query_params;
+        ksort($params);
+        unset($params['token']);
+        unset($params['appid']);
+
+        $querystring = http_build_query($params);
+        $app_key_map = $this->app_key_map;
+        if(array_key_exists($client_appid, $app_key_map)){
+            $app_serect = $app_key_map[$client_appid];
+        }else{
+            return $this->result(['code' => -1]);
+        }
+
+        $server_token = md5($querystring . date("Ymd"). $app_serect);
+        if($server_token !== $client_token){
+            return $this->result(['code' => -2]);
+        }
+        return true;
+    }
+
+    /**
+     * 生成签名token
+     * @return string
+     */
+    public function token()
+    {
+        $token = substr(md5($this->name.self::KEY),2,10);
+        return $token;
+    }
+
+}

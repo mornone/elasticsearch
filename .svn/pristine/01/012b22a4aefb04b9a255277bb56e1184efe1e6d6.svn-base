@@ -1,0 +1,39 @@
+<?php
+class Base
+{
+    /**
+     * 远程发送请求方法
+     * @param $url
+     * @param string $type
+     * @return mixed
+     */
+    public function curlFileGetContents($url, $type = 'get')
+    {
+        $this_header = ["content-type: application/x-www-form-urlencoded; charset=UTF-8"];
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $this_header);
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        switch ($type) {
+            case "get" :
+                curl_setopt($ch, CURLOPT_HTTPGET, true);
+                break;
+            case "post":
+                curl_setopt($ch, CURLOPT_POST, true);
+//                curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+                break;
+            case "put" :
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
+//                curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+                break;
+            case "delete":
+                curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
+//                curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+                break;
+        }
+        $r = curl_exec($ch);
+        curl_close($ch);
+        return $r;
+    }
+}

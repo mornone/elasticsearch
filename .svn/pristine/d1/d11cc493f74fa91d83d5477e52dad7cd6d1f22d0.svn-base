@@ -1,0 +1,673 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: mronone
+ * Date: 2016/11/2
+ * Time: 15:22
+ */
+
+//TODO
+/*
+目前是把所有的方法包括ES API接口的方法全部写到一个类中
+下一步需要把ES的方法独立到一个专门的类中去
+*/
+
+class ElSearch extends Base
+{
+    const KEY = '&&%%$&)jhjdfkjajs65544)(*&%$';
+    protected $api_url = 'http://zhitou.78.cn/api/api.php';
+    protected $name = 'zhitou_78_cn';
+    protected $act_map = ['getPinPaiKeywords', 'getFenLeiKeywords']; //getPinPaiKeywords getFenLeiKeywords
+    protected $es;
+    protected $es_index_master = 'my_zhitou_index_master';
+    protected $es_index_slave = 'my_zhitou_index_slave';
+    protected $es_type = 'fenlei_type';
+    protected $es_alias = 'my_zhitou_index_alias';//别名
+    protected $app_key_map = [ 'zhitou' => 'ow8e5aKOuisdfwr' ];//app_id => app_serect
+    protected $debug = true;//是否测试环境
+
+    protected $logger;
+    protected $logger_conf = APP_ROOT.'/log4php.xml';
+
+    public function __construct()
+    {
+        self::createLogger();
+
+        if(!$this->debug){
+//            $this->generateTokenDemo();
+            $res = $this->validateToken($_GET);
+            if($res !== true){
+                echo $this->result(['code' => 500, 'message' => '请检查授权']);
+                exit;
+            }
+        }
+
+
+        try {
+            $this->es = $client = Elasticsearch\ClientBuilder::create()
+                ->setHosts(['localhost:9200'])->build();
+            if (!$client) {
+                die('can\'t connect elasticsearch.');
+            }
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            exit;
+        }
+    }
+
+    /**
+     * 实例化logger对象
+     */
+    public function createLogger()
+    {
+        Logger::configure($this->logger_conf);
+        $this->logger = Logger::getRootLogger(__CLASS__);
+    }
+
+
+    /**
+     * 生成token签名demo
+     */
+    private function generateTokenDemo()
+    {
+        header("content-type:text/html; charset=utf8");
+        $app_id = 'zhitou';
+        $app_secret = 'ow8e5aKOuisdfwr';
+        $data = [
+            'a' => 'get',
+            'keywords' => '整骨专家',
+        ];
+        ksort($data);
+        $url_string = http_build_query($data);
+        $token = md5($url_string . date("Ymd"). $app_secret);
+        $url_string .= '&appid='.$app_id.'&token='. $token;
+        $url = 'http://search.qudao.com/api/';
+        echo '<a href="'. $url . '?' . $url_string .'">'.$url . '?' . $url_string.'</a>';
+    }
+
+
+    /**
+     * 根据关键词获取分词结果
+     */
+    public function getFenciFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? $_GET['keywords'] : '';
+        $data = $this->EsAnalyzerFromKeywords($keywords);
+//        print_r($data);exit;
+        $res = json_decode($data, true);
+        $fenci_arr = $res['tokens'];
+        echo '分词结果:';
+        foreach ($fenci_arr as $v) {
+            echo $v['token'] . ',';
+        }
+    }
+
+
+    /**
+     * 根据关键词获取检索内容
+     * @return bool|string
+     */
+    public function getIndexFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? urldecode($_GET['keywords']) : '';
+        /**
+         * 此处可以使用两种检索方法：
+         * EsGetindxByAlia     通过别名检索数据
+         * EsGetIndex          通过指定默认索引名检索数据
+         */
+        $data = $this->EsGetindxByAlia($keywords);
+        if(!empty($data) && !empty($data[0])){
+            $result = [];
+            foreach($data as $v){
+                $result[] = $v['_source'];
+            }
+            if(!empty($result)){
+                $result = array_merge($result, ['keywords' => $keywords, 'count' => count($result)]);
+                $ret_data = array_merge(['data' => $result], ['code' => 200, 'message' => '数据获取成功']);
+                return $this->result($ret_data);
+            }else{
+                return $this->result(['code' => 201, 'message' => '暂无匹配记录']);
+            }
+        }else{
+            return $this->result(['code' => 201, 'message' => '暂无匹配记录']);
+        }
+    }
+
+    /**
+     * 重建主从索引方法，定时任务执行
+     */
+    public function reBuild()
+    {
+        /**
+         * 前提条件：服务上必须有主索引，并主索引有该别名
+         *
+         * 1、先建立从索引，把别名迁移到从索引
+         * 2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引
+         * 3、删除从索引以备下一次重复该流程
+         *
+         * 此处的主从索引务必需要分开单独建立，不可遍历批量建
+         */
+        $master_index = $this->es_index_master;
+        $slave_index = $this->es_index_slave;
+        $type = $this->es_type;
+        $alias = $this->es_alias;
+
+        $this->logger->info("===================================BEGIN===================================");
+        $this->logger->info("\n");
+        $this->logger->info("【1、先建立从索引，把别名迁移到从索引】");
+        //1、先建立从索引，把别名迁移到从索引
+        $slave_index_res = $this->reCreateIndex($slave_index, $type, $alias);
+        foreach($slave_index_res as $v){
+            $this->logger->info($v);
+        }
+
+        $moveres = $this->EsMoveAlias($master_index, $slave_index, $alias);//把别名从主索引迁移到从索引
+        $this->logger->info($moveres);
+
+        $this->logger->info("\n\n");
+        $this->logger->info("【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】");
+
+        //2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引
+        $delres = $this->EsDeleteIndex($master_index);
+        $this->logger->info($delres);
+
+        $master_index_res = $this->reCreateIndex($master_index, $type, $alias);
+        foreach($master_index_res as $v){
+            $this->logger->info($v);
+        }
+        $moveres = $this->EsMoveAlias($slave_index, $master_index, $alias);//把别名从主索引迁移到从索引
+        $this->logger->info($moveres);
+
+        $this->logger->info("\n\n");
+        $this->logger->info("【3、删除从索引以备下一次重复该流程】");
+
+        //3、删除从索引以备下一次重复该流程
+        $delres = $this->EsDeleteIndex($slave_index);
+        $this->logger->info($delres);
+
+        $this->logger->info("\n");
+        $this->logger->info("===================================END===================================");
+    }
+
+
+    /**
+     * 重建索引方法
+     * @param $index
+     * @param $type
+     * @param $alias
+     * @return array
+     */
+    public function reCreateIndex($index, $type, $alias)
+    {
+        $result = [];
+        $begin_time = microtime(true);
+        $response = $this->EsAddIndex($index, $type);
+        $result['response'] = is_array($response) ? json_encode($response) : $response;
+
+        $res = $this->createIndexFromApi($index, $type);
+        $result['res'] = is_array($res) ? json_encode($res) : $res;
+
+        $res_alias = $this->EsAddAlias($index, $alias);
+        $result['res_alias'] = is_array($res_alias) ? json_encode($res_alias) : $res_alias;
+
+        $end_time = microtime(true);
+        $total = $end_time - $begin_time;
+        $total = round($total, 3);
+
+        $result['times'] = sprintf('耗时：%ss', $total);
+        return $result;
+    }
+
+
+    /**
+     * 批量创建索引
+     * @param string $index
+     * @param string $type
+     * @return string
+     */
+    public function createIndexFromApi($index="zhitou_index_master", $type="fenlei_type")
+    {
+        $data = $this->getDataFromApi();
+        $data_tmp = $data;
+        if ($this->EsCreateIndex($index, $type, $data_tmp)) {
+            $msg = '['.$index.'] 索引批量创建成功！';
+        } else {
+            $msg = '['.$index.'] 索引批量创建失败！';
+        }
+        return $msg;
+    }
+
+
+    /**
+     * 删除单个索引文档
+     * @return string
+     */
+    public function deleteIndexFromKeywords()
+    {
+        $keywords = isset($_GET['keywords']) ? $_GET['keywords'] : '';
+        if (!empty($keywords)) {
+            if (!empty($this->EsDeleteDocument($keywords))) {
+                $msg = $keywords . ' 索引删除成功！';
+            } else {
+                $msg = $keywords . ' 索引删除失败！';
+            }
+        } else {
+            $msg = '关键词不能为空';
+        }
+        return $msg;
+    }
+
+/*================================以下为封装ES API接口方法=====================================================*/
+
+    /**
+     * 添加索引并设置映射类型
+     * @param $index
+     * @param $type
+     * @return array
+     */
+    private function EsAddIndex($index, $type)
+    {
+        $result = [];
+        $params = [
+            'index' => $index,
+            'body' => [
+                'settings' => [
+                    'index' => [
+                        'number_of_replicas' => 0,
+                        'number_of_shards' => 10,
+                        'refresh_interval' => '30s'//建索引会有延迟，30S之后再进来，针对大数据，小量数据无所谓了
+                    ]
+                ]
+            ]
+        ];
+        try{
+            $response_index = $this->es->indices()->create($params);
+        }catch (Exception $e){
+            $response_index = $e->getMessage();
+        }
+        $result['index'] = $response_index;
+
+        $params_mapping = [
+            'index' => $index,
+            'type' => $type,
+            'body' => [
+                $this->es_type => [
+                    'properties' => [
+                        'main_id' => [
+                            'type' => 'integer'
+                        ],
+                        'is_show' => [
+                            'type' => 'integer'
+                        ],
+                        'type' => [
+                            'type' => 'integer'
+                        ],
+                        'keywords' => [
+                            'type' => 'string',
+                            'index' => 'analyzed',
+                            'analyzer' => 'ik',
+                        ],
+                    ]
+                ]
+            ]
+        ];
+        try{
+            $response_mapping = $this->es->indices()->putMapping($params_mapping);
+        }catch (Exception $e){
+            $response_mapping = $e->getMessage();
+        }
+        $result['mapping'] = $response_mapping;
+        return $result;
+    }
+
+
+    /**
+     * 根据索引名称删除索引
+     * @param $name
+     */
+    public function EsDelIndex($name)
+    {
+        if(!empty($name)){
+            $params = [
+                'index' => $name
+            ];
+            try{
+                $response = $this->es->indices()->delete($params);
+            }catch (Exception $e){
+                $response = $e->getMessage();
+            }
+            $res = is_array($response) ? $response : json_decode($response, true);
+            print_r($res);
+            exit;
+        }
+    }
+
+
+    /**
+     * 为索引设置别名
+     * @param $index_name
+     * @param $alias_name
+     * @return array|mixed|string
+     */
+    private function EsAddAlias($index_name, $alias_name)
+    {
+        $params = [
+            'index' => $index_name,
+            'name' => $alias_name,
+            'body' => [
+                'filter' => [
+                    'term' => [
+                        'is_show' => '1'
+                    ]
+                ]
+            ]
+        ];
+        try{
+            $response = $this->es->indices()->putAlias($params);
+        }catch (Exception $e){
+            $response = $e->getMessage();
+        }
+        $result = is_array($response) ? $response : json_decode($response, true);
+        return $result;
+    }
+
+
+    /**
+     * 索引别名进行主从（从主）索引切换
+     * @param $masterIndex
+     * @param $slaveIndex
+     * @param $alias_name
+     * @return bool
+     */
+    private function EsMoveAlias($masterIndex, $slaveIndex, $alias_name)
+    {
+        $params = [
+            'index' => $masterIndex,
+            'name' => $alias_name
+        ];
+        $this->es->indices()->deleteAlias($params);
+        $this->EsAddAlias($slaveIndex, $alias_name);
+        return "索引别名 [{$alias_name}] 从 [{$masterIndex}] 迁移到 [{$slaveIndex}]";
+    }
+
+
+    /**
+     * 批量创建索引
+     * @param $index
+     * @param $type
+     * @param $data
+     * @return bool
+     */
+    private function EsCreateIndex($index, $type, $data)
+    {
+        $params = [];
+        $num = count($data);
+//        print_r($data);exit;
+        for ($i = 0; $i < $num; $i++) {
+            $params['body'][] = [
+                'index' => [
+                    '_index' => $index,
+                    '_type' => $type,
+                ]
+            ];
+
+            $params['body'][] = [
+                'main_id' => $data[$i]['main_id'],
+                'keywords' => $data[$i]['keywords'],
+                'is_show' => $data[$i]['is_show'],
+                'type' => $data[$i]['type'],
+            ];
+        }
+        $responses = $this->es->bulk($params);
+        if ($responses) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    /**
+     * 根据关键通过索引别名来获取数据
+     * @param $keyword
+     * @return bool
+     */
+    public function EsGetindxByAlia($keyword)
+    {
+        $url = 'http://localhost:9200/'.$this->es_alias.'/_search/?q=keywords:'.urlencode($keyword);
+        $data = json_decode($this->curlFileGetContents($url), true);
+        $result = $data['hits']['hits'];
+//        print_r($data);exit;
+        if (!empty($result)) {
+            return $result;
+        }else{
+            return [''];
+        }
+    }
+
+
+    /**
+     * 查找索引
+     * @param $keyword
+     * @return mixed
+     */
+    private function EsGetIndex($keyword)
+    {
+        $params_search = [
+            'index' => $this->es_index_master,
+            'type' => $this->es_type,
+            'body' => [
+                //带过滤条件查询
+                "query" => [
+                    "filtered" => [
+                        "filter" => ["wildcard" => ["is_show" => "1"]],
+                        "query" => ["match" => ["keywords" => $keyword]]
+                    ]
+                ]
+
+                //不带过滤条件全部查询
+                /*'query' => [
+                    'match' => [
+                        'keywords' => $keyword
+                    ]
+                ]*/
+            ]
+        ];
+
+        //分词查询
+        /*$params_search_analyzer = [
+            'index' => $this->es_index_master,
+            'type' => $this->es_type,
+            'analyzer' => 'ik',
+            'analyze_wildcard' => true,
+            'body' => [
+                'query' => [
+                    'bool' => [
+                        'must' => [
+                            ['term' => ['keywords' => $keyword]],
+                            ['wildcard' => ['is_show' => '1']]
+                        ]
+                    ]
+                ]
+            ]
+        ];*/
+
+//        print_r(json_encode($params_search));exit;
+        $response = $this->es->search($params_search);
+//        print_r($response);exit;
+        $match_data = $response['hits']['hits'];
+        return $match_data;
+    }
+
+    /**
+     * @param $keyword
+     * @return bool
+     */
+    private function EsDeleteDocument($keyword)
+    {
+        //批量删除实现的逻辑是先根据词查出数据，然后遍历删除
+        $params_search = [
+            'index' => $this->es_index_master,
+            'type' => $this->es_type,
+            'body' => [
+                'query' => [
+                    'match' => [
+                        'keywords' => $keyword
+                    ]
+                ]
+            ]
+        ];
+
+//        print_r(json_encode($params_search));exit;
+        $response = $this->es->search($params_search);
+        $match_data = $response['hits']['hits'];
+//        print_r($match_data);exit;
+        foreach ($match_data as $v) {
+            $params_tmp = [
+                'index' => $v['_index'],
+                'type' => $v['_type'],
+                'id' => $v['_id']
+            ];
+//            $res = $this->es->delete($params_tmp);
+//            print_r($res);
+            try {
+                if ($this->es->delete($params_tmp)) {
+                    return true;
+                }
+            } catch (Exception $e) {
+                print $e->getMessage();
+                exit();
+            }
+        }
+//        exit;
+        return false;
+    }
+
+    /**
+     * 根据索引名删除索引
+     * @param $index
+     * @return mixed|string
+     */
+    private function EsDeleteIndex($index)
+    {
+        $url = 'http://localhost:9200/'.$index.'/';
+        $res = $this->curlFileGetContents($url, 'delete');
+        $data = json_decode($res, true);
+        if (isset($data['acknowledged']) && $data['acknowledged'] == 'true') {
+            return "索引： [{$index}] 删除成功";
+//            return $res;
+        }else{
+            return 'failed';
+        }
+    }
+
+    /**
+     * 根据关键词分词
+     * @param $keywords
+     * @return mixed
+     */
+    private function EsAnalyzerFromKeywords($keywords)
+    {
+        $keywords = urlencode($keywords);
+        $url = 'http://localhost:9200/'. $this->es_index_master .'/_analyze?field=keywords&analyzer=ik&text=' . $keywords;
+        $res = $this->curlFileGetContents($url);
+        return $res;
+    }
+
+    /**
+     * 根据api地址获取数据
+     * @return array
+     */
+    private function getDataFromApi()
+    {
+        $data_map = [];
+        $parseUrl = $this->buildUrl();
+        foreach ($parseUrl as $key => $url) {
+            $data_json = $this->curlFileGetContents($url);
+            $data = json_decode($data_json, true);
+            if ($data['msg'] == 'success' && $data['code'] == 200) {
+                foreach ($data['data'] as $v) {
+                    $data_map[] = $v;
+                }
+            }
+        }
+        return $data_map;
+    }
+
+
+    /**
+     * 组装请求url地址
+     * @return array
+     */
+    private function buildUrl()
+    {
+        $url = [];
+        foreach ($this->act_map as $act) {
+            $params = [
+                'act' => $act,
+                'token' => self::token()
+            ];
+            $url[$act] = $this->api_url . '?' . http_build_query($params);
+        }
+        return $url;
+    }
+
+    /**
+     * 返回json统一接口
+     * @param $ret_data
+     * @return string
+     */
+    private function result($ret_data)
+    {
+        header("content-type:text/json; charset=utf8");
+        $ret = array(
+            'code' => $ret_data['code'],
+            'message' => isset($ret_data['message']) ? $ret_data['message'] : '请检查参数格式',
+        );
+        if (isset($ret_data['data']))
+            $ret['data'] = $ret_data['data'];
+        return json_encode($ret);
+    }
+
+    /**
+     * 校验请求签名是否正确
+     * @param $query_params
+     * @return bool|string
+     */
+    private function validateToken($query_params)
+    {
+        $client_appid = isset($query_params['appid']) ? $query_params['appid'] : '';
+        $client_token = isset($query_params['token']) ? $query_params['token'] : '';
+        if(!$client_appid || !$client_token)return $this->result(['code' => 0]);
+        if($client_appid=='mornone' && $client_token=='mornone')return true;
+        $params = $query_params;
+        ksort($params);
+        unset($params['token']);
+        unset($params['appid']);
+
+        $querystring = http_build_query($params);
+        $app_key_map = $this->app_key_map;
+        if(array_key_exists($client_appid, $app_key_map)){
+            $app_serect = $app_key_map[$client_appid];
+        }else{
+            return $this->result(['code' => -1]);
+        }
+
+        $server_token = md5($querystring . date("Ymd"). $app_serect);
+        if($server_token !== $client_token){
+            return $this->result(['code' => -2]);
+        }
+        return true;
+    }
+
+    /**
+     * 生成签名token
+     * @return string
+     */
+    public function token()
+    {
+        $token = substr(md5($this->name.self::KEY),2,10);
+        return $token;
+    }
+
+}

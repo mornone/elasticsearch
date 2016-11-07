@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration xmlns="http://logging.apache.org/log4php/">
+    <appender name="default" class="LoggerAppenderDailyFile">
+        <layout class="LoggerLayoutPattern" >
+            <param name="conversionPattern" value="%date{Y-m-d H:i:s} %logger %-5level %msg%n" />
+        </layout>
+        <param name="file" value="/data/www/qudao/search/crontab/logs/rebuild/log-%s.txt" />
+        <param name="datePattern" value="Y-m-d" />
+    </appender>
+    <appender name="visit" class="LoggerAppenderDailyFile">
+        <layout class="LoggerLayoutPattern" >
+            <param name="conversionPattern" value="%date{Y-m-d H:i:s} %logger %-5level %msg%n" />
+        </layout>
+        <param name="file" value="/data/www/qudao/search/crontab/logs/visit/log-%s.txt" />
+        <param name="datePattern" value="Y-m-d" />
+    </appender>
+    <logger name="visit">
+        <appender_ref ref="visit" />
+    </logger>
+    <logger name="default">
+        <appender_ref ref="default" />
+    </logger>
+    <!--可以指定默认appender，如果程序里要使用多个appender，此处不要设置默认-->
+    <!--
+    <root>
+        <appender_ref ref="default" />
+    </root>
+    -->
+</configuration>
