@@ -36,3 +36,36 @@ composer install
 ![image](readme/3.jpg)
 
 ![image](readme/4.jpg)
+
+#### 参考文档
+
+[Using Elasicsearch with php](https://www.simplicity.be/article/using-elasticsearch-php/)
+
+[Using Elasticsearch with PHP a simple guide](http://www.web-development-blog.com/archives/using-elasticsearch-with-php/)
+
+[可用的简单的稳定的php导数据至elasticsearch代码](http://www.cnblogs.com/wenzhilin/p/3534700.html)
+
+[elasticsearch安装记录 ](http://blog.csdn.net/gongzi2311/article/details/51699798)
+
+[PHP ElasticSearch的使用](http://blog.csdn.net/rongyongfeikai2/article/details/37911871)
+
+[**==网站基于ElasticSearch搜索的优化笔记 PHP==**](http://www.open-open.com/lib/view/open1404912972950.html)
+
+[Elasticsearch安装使用教程](http://www.linuxidc.com/Linux/2015-02/113615.htm)
+
+[elasticsearch插件三—— Marvel插件安装详解](http://blog.csdn.net/laoyang360/article/details/51472902)
+
+[elasticsearch插件六—— 分词 IK analyzer插件安装详解](http://blog.csdn.net/laoyang360/article/details/51472953)
+
+[How to use 'OR' in elasticsearch PHP](http://stackoverflow.com/questions/24254881/how-to-use-or-in-elasticsearch-php)
+
+[**==Elastic中文社区==**](http://elasticsearch.cn/)
+
+---
+[ElasticSearch中IK配置](http://blog.sina.com.cn/s/blog_6f3ff2c90102vwkd.html)
+
+[ElasticSearch安装ik分词插件](https://my.oschina.net/xiaohui249/blog/232784)
+
+[elasticsearch 口水篇（1）安装、插件](http://www.cnblogs.com/huangfox/p/3541300.html)
+
+[elasticsearch-head](http://mobz.github.io/elasticsearch-head/)
