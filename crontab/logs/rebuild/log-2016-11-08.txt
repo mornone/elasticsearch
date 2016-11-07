@@ -619,3 +619,57 @@
 2016-11-08 01:50:19 default INFO  
 
 2016-11-08 01:50:19 default INFO  ===================================END===================================
+2016-11-08 01:55:17 default INFO  ===================================BEGIN===================================
+2016-11-08 01:55:17 default INFO  
+
+2016-11-08 01:55:17 default INFO  【1、先建立从索引，把别名迁移到从索引】
+2016-11-08 01:55:20 default INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-08 01:55:20 default INFO  [my_zhitou_index_slave] 索引批量创建成功！
+2016-11-08 01:55:20 default INFO  {"acknowledged":true}
+2016-11-08 01:55:20 default INFO  耗时：2.783s
+2016-11-08 01:55:20 default INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_master] 迁移到 [my_zhitou_index_slave]
+2016-11-08 01:55:20 default INFO  
+
+
+2016-11-08 01:55:20 default INFO  【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】
+2016-11-08 01:55:20 default INFO  索引： [my_zhitou_index_master] 删除成功
+2016-11-08 01:55:23 default INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-08 01:55:23 default INFO  [my_zhitou_index_master] 索引批量创建成功！
+2016-11-08 01:55:23 default INFO  {"acknowledged":true}
+2016-11-08 01:55:23 default INFO  耗时：2.563s
+2016-11-08 01:55:23 default INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_slave] 迁移到 [my_zhitou_index_master]
+2016-11-08 01:55:23 default INFO  
+
+
+2016-11-08 01:55:23 default INFO  【3、删除从索引以备下一次重复该流程】
+2016-11-08 01:55:23 default INFO  索引： [my_zhitou_index_slave] 删除成功
+2016-11-08 01:55:23 default INFO  
+
+2016-11-08 01:55:23 default INFO  ===================================END===================================
+2016-11-08 02:00:16 default INFO  ===================================BEGIN===================================
+2016-11-08 02:00:16 default INFO  
+
+2016-11-08 02:00:16 default INFO  【1、先建立从索引，把别名迁移到从索引】
+2016-11-08 02:00:19 default INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-08 02:00:19 default INFO  [my_zhitou_index_slave] 索引批量创建成功！
+2016-11-08 02:00:19 default INFO  {"acknowledged":true}
+2016-11-08 02:00:19 default INFO  耗时：2.454s
+2016-11-08 02:00:19 default INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_master] 迁移到 [my_zhitou_index_slave]
+2016-11-08 02:00:19 default INFO  
+
+
+2016-11-08 02:00:19 default INFO  【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】
+2016-11-08 02:00:19 default INFO  索引： [my_zhitou_index_master] 删除成功
+2016-11-08 02:00:20 default INFO  {"index":{"acknowledged":true},"mapping":{"acknowledged":true}}
+2016-11-08 02:00:20 default INFO  [my_zhitou_index_master] 索引批量创建成功！
+2016-11-08 02:00:20 default INFO  {"acknowledged":true}
+2016-11-08 02:00:20 default INFO  耗时：1.804s
+2016-11-08 02:00:20 default INFO  索引别名 [my_zhitou_index_alias] 从 [my_zhitou_index_slave] 迁移到 [my_zhitou_index_master]
+2016-11-08 02:00:20 default INFO  
+
+
+2016-11-08 02:00:20 default INFO  【3、删除从索引以备下一次重复该流程】
+2016-11-08 02:00:21 default INFO  索引： [my_zhitou_index_slave] 删除成功
+2016-11-08 02:00:21 default INFO  
+
+2016-11-08 02:00:21 default INFO  ===================================END===================================
