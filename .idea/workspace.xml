@@ -45,10 +45,10 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="ElSearch.php" pinned="false" current-in-tab="true">
+      <file leaf-file-name="ElSearch.php" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/library/ElSearch.php">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.45017585">
+            <state vertical-scroll-proportion="-12.8">
               <caret line="183" column="28" selection-start-line="183" selection-start-column="11" selection-end-line="183" selection-end-column="28" />
               <folding>
                 <element signature="e#6#88#0#PHP" expanded="true" />
@@ -97,11 +97,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="ElasticsearchTrait.php" pinned="false" current-in-tab="false">
+      <file leaf-file-name="ElasticsearchTrait.php" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/library/ElasticsearchTrait.php">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-18.333334">
-              <caret line="22" column="31" selection-start-line="22" selection-start-column="31" selection-end-line="23" selection-end-column="0" />
+            <state vertical-scroll-proportion="0.5568581">
+              <caret line="100" column="31" selection-start-line="100" selection-start-column="21" selection-end-line="100" selection-end-column="31" />
               <folding />
             </state>
           </provider>
@@ -890,14 +890,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/library/ElasticsearchTrait.php">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-18.333334">
-          <caret line="22" column="31" selection-start-line="22" selection-start-column="31" selection-end-line="23" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/api/index.php">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-21.666666">
@@ -908,11 +900,19 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/library/ElSearch.php">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.45017585">
+        <state vertical-scroll-proportion="-12.8">
           <caret line="183" column="28" selection-start-line="183" selection-start-column="11" selection-end-line="183" selection-end-column="28" />
           <folding>
             <element signature="e#6#88#0#PHP" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/library/ElasticsearchTrait.php">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.5568581">
+          <caret line="100" column="31" selection-start-line="100" selection-start-column="21" selection-end-line="100" selection-end-column="31" />
+          <folding />
         </state>
       </provider>
     </entry>
