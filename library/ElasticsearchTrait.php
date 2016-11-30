@@ -1,12 +1,42 @@
 <?php
 trait ElasticsearchTrait
 {
-    protected $es_index_master = 'my_zhitou_index_master';
-    protected $es_index_slave = 'my_zhitou_index_slave';
-    protected $es_type = 'fenlei_type';
-    protected $es_alias = 'my_zhitou_index_alias';//别名
+    protected $es_host = '';//localhost:9200
+    protected $es_index_master = '';//my_zhitou_index_master
+    protected $es_index_slave = '';//my_zhitou_index_slave
+    protected $es_type = '';//fenlei_type
+    protected $es_alias = '';//别名 my_zhitou_index_alias
+    protected $es_request_url = '';
+    protected $es = null;
 
     /*================================以下为封装ES API接口方法=====================================================*/
+    /**
+     * 创建ES对象
+     * @return \Elasticsearch\Client|null
+     */
+    public function createEsObj($es_host, $es_index_master, $es_index_slave, $es_type, $es_alias)
+    {
+        $this->es_host = $es_host;
+        $this->es_index_master = $es_index_master;
+        $this->es_index_slave = $es_index_slave;
+        $this->es_type = $es_type;
+        $this->es_alias = $es_alias;
+        //连接ES并实例化ES对象
+        try {
+            $client = null;
+            $this->es = $client = Elasticsearch\ClientBuilder::create()->setHosts([$this->es_host])->build();
+            if (!$client) {
+                die('can\'t connect elasticsearch.');
+            }
+
+            $this->es_request_url =  'http://'.$this->es_host.'/';
+            return $client;
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            exit;
+        }
+
+    }
 
     /**
      * 添加索引并设置映射类型
@@ -23,7 +53,7 @@ trait ElasticsearchTrait
                 'settings' => [
                     'index' => [
                         'number_of_replicas' => 0,
-                        'number_of_shards' => 10,
+                        'number_of_shards' => 5,
                         'refresh_interval' => '5s'//建索引会有延迟，30S之后再进来，针对大数据，小量数据无所谓了
                     ]
                 ]
@@ -151,7 +181,6 @@ trait ElasticsearchTrait
     {
         $params = [];
         $num = count($data);
-//        print_r($data);exit;
         for ($i = 0; $i < $num; $i++) {
             $params['body'][] = [
                 'index' => [
@@ -183,10 +212,10 @@ trait ElasticsearchTrait
      */
     public function EsGetindxByAlia($keyword)
     {
-        $url = 'http://localhost:9200/'.$this->es_alias.'/_search/?q=keywords:'.urlencode($keyword);
+        $url = $this->es_request_url . $this->es_alias.'/_search/?size=5000&q=keywords:'.urlencode($keyword);
         $data = json_decode($this->curlFileGetContents($url), true);
+        $total = $data['hits']['total'];
         $result = $data['hits']['hits'];
-//        print_r($data);exit;
         if (!empty($result)) {
             return $result;
         }else{
@@ -241,9 +270,7 @@ trait ElasticsearchTrait
             ]
         ];*/
 
-//        print_r(json_encode($params_search));exit;
         $response = $this->es->search($params_search);
-//        print_r($response);exit;
         $match_data = $response['hits']['hits'];
         return $match_data;
     }
@@ -267,18 +294,14 @@ trait ElasticsearchTrait
             ]
         ];
 
-//        print_r(json_encode($params_search));exit;
         $response = $this->es->search($params_search);
         $match_data = $response['hits']['hits'];
-//        print_r($match_data);exit;
         foreach ($match_data as $v) {
             $params_tmp = [
                 'index' => $v['_index'],
                 'type' => $v['_type'],
                 'id' => $v['_id']
             ];
-//            $res = $this->es->delete($params_tmp);
-//            print_r($res);
             try {
                 if ($this->es->delete($params_tmp)) {
                     return true;
@@ -288,7 +311,6 @@ trait ElasticsearchTrait
                 exit();
             }
         }
-//        exit;
         return false;
     }
 
@@ -299,12 +321,11 @@ trait ElasticsearchTrait
      */
     private function EsDeleteIndex($index)
     {
-        $url = 'http://localhost:9200/'.$index.'/';
+        $url = $this->es_request_url . $index.'/';
         $res = $this->curlFileGetContents($url, 'delete');
         $data = json_decode($res, true);
         if (isset($data['acknowledged']) && $data['acknowledged'] == 'true') {
             return "索引： [{$index}] 删除成功";
-//            return $res;
         }else{
             return 'failed';
         }
@@ -318,7 +339,7 @@ trait ElasticsearchTrait
     private function EsAnalyzerFromKeywords($keywords)
     {
         $keywords = urlencode($keywords);
-        $url = 'http://localhost:9200/'. $this->es_index_master .'/_analyze?field=keywords&analyzer=ik&text=' . $keywords;
+        $url = $this->es_request_url . $this->es_index_master .'/_analyze?field=keywords&analyzer=ik&text=' . $keywords;
         $res = $this->curlFileGetContents($url);
         return $res;
     }

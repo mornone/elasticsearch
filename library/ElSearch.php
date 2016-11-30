@@ -5,6 +5,7 @@
  * Date: 2016/11/2
  * Time: 15:22
  */
+namespace library;
 
 class ElSearch extends Base
 {
@@ -16,21 +17,19 @@ class ElSearch extends Base
 
     //本接口鉴权app_id及app_serect信息
     protected $app_key_map = [ 'zhitou' => 'ow8e5aKOuisdfwr' ];//app_id => app_serect
-    protected $debug = true;//是否测试环境，测试环境下不进行接口鉴权验证
+    protected $debug = false;//是否测试环境，测试环境下不进行接口鉴权验证
 
     //请求方信息
     protected $client_appid = null;
     protected $client_token = null;
 
     //ES及日志信息
-    protected $es = null;
     protected $logger = null;
     protected $visit_logger = null;
-    protected $logger_conf = APP_ROOT.'/log4php_local.xml';
 
     use ElasticsearchTrait;
 
-    public function __construct()
+    public function __construct($es_config)
     {
         //接口鉴权验证
         if(!$this->debug){
@@ -42,20 +41,10 @@ class ElSearch extends Base
             }
         }
 
-        //连接ES并实例化ES对象
-        try {
-            $this->es = $client = Elasticsearch\ClientBuilder::create()
-                ->setHosts(['localhost:9200'])->build();
-            if (!$client) {
-                die('can\'t connect elasticsearch.');
-            }
-        } catch (Exception $e) {
-            echo $e->getMessage();
-            exit;
-        }
+        $this->createEsObj($es_config['idx_host'], $es_config['idx_master'], $es_config['idx_slave'], $es_config['idx_type'], $es_config['idx_alias']);
 
         //实例化logger对象
-        Logger::configure($this->logger_conf);
+        Logger::configure(LOG_CONFIG);
 //        $this->logger = Logger::getRootLogger();
         $this->logger = Logger::getLogger('default');
         $this->visit_logger = Logger::getLogger("visit");
@@ -85,21 +74,24 @@ class ElSearch extends Base
 
     /**
      * 根据关键词获取分词结果
+     * @param $keywords
      * @param int $output 1 直接输出分词结果 0 返回分词结果数组
      * @return array
      */
-    public function getFenciFromKeywords($output=1)
+    public function getFenciFromKeywords($keywords, $output=1)
     {
         $keywords = isset($_GET['keywords']) ? $_GET['keywords'] : '';
         $data = $this->EsAnalyzerFromKeywords($keywords);
         $res = json_decode($data, true);
         $fenci_arr = $res['tokens'];
-        $this->logRequestInfo($keywords, __METHOD__);
         $fenci_res = [];
-        foreach ($fenci_arr as $v) {
-            $fenci_res[] = $v['token'];
+        if(!empty($fenci_arr)){
+            foreach ($fenci_arr as $v) {
+                $fenci_res[] = $v['token'];
+            }
         }
         if($output==1){
+            $this->logRequestInfo($keywords, __METHOD__);
             echo '分词结果:';
             echo implode($fenci_res, ',');
         }else{
@@ -135,10 +127,10 @@ class ElSearch extends Base
                 $ret_data = array_merge(['data' => $result], ['code' => 200, 'message' => '数据获取成功']);
                 return $this->result($ret_data);
             }else{
-                return $this->result(['code' => 201, 'message' => '暂无匹配记录']);
+                return $this->result(['code' => 201, 'message' => '暂无匹配记录', 'data' =>  ['keywords' => $keywords, 'fenci'=>$fenci] ]);
             }
         }else{
-            return $this->result(['code' => 201, 'message' => '暂无匹配记录']);
+            return $this->result(['code' => 201, 'message' => '暂无匹配记录', 'data' =>  ['keywords' => $keywords, 'fenci'=>$fenci]]);
         }
     }
 
@@ -198,12 +190,14 @@ class ElSearch extends Base
         foreach($slave_index_res as $v){
             $this->logger->info($v);
         }
+        sleep(10);//等待10s以使索引数据刷新完成再切换别名
 
         $moveres = $this->EsMoveAlias($master_index, $slave_index, $alias);//把别名从主索引迁移到从索引
         $this->logger->info($moveres);
 
         $this->logger->info("\n\n");
         $this->logger->info("【2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引】");
+
 
         //2、接着删除主索引，然后重新建立主索引，并把别名迁移到主索引
         $delres = $this->EsDeleteIndex($master_index);
@@ -213,6 +207,8 @@ class ElSearch extends Base
         foreach($master_index_res as $v){
             $this->logger->info($v);
         }
+        sleep(10);//等待10s以使索引数据刷新完成再切换别名
+
         $moveres = $this->EsMoveAlias($slave_index, $master_index, $alias);//把别名从主索引迁移到从索引
         $this->logger->info($moveres);
 

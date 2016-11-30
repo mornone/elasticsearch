@@ -2,11 +2,12 @@
 require 'vendor/autoload.php';
 
 //1、连接Elasticsearch
-$client = Elasticsearch\ClientBuilder::create()->build();
+$client = Elasticsearch\ClientBuilder::create()->setHosts(['192.168.137.154:9200'])->build();
 
 if ($client) {
-//    echo 'connected';
+    echo 'connected';
 }
+//exit;
 
 //索引数据
 $params = [
